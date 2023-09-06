@@ -1,0 +1,252 @@
+---
+title: "Final Report"
+output: html_document
+date: "2022-12-16"
+---
+
+```{r setup, include=FALSE}
+library("tidyverse")
+library("dplyr")
+library("ggplot2")
+library("MASS")
+library("tidyr")
+library("e1071")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+mortality <- read.csv("data01.csv")
+```
+
+
+# **Final Report**
+
+## **1 Executive Summary**
+
+In this final report, I explored the relationships between different comorbidities and hospital mortality in HF patients. My original dataset included lots of categorical and numeric values such as hypertension, diabetes and heart rate. I chose to focus on the comorbidities in this dataset as a predictor of outcome. This made most of the data in my dataset categorical.
+
+During analysis, I was able to find that I had a dataset where most of the patients did not die. By cleaning and organizing this data, I was able to explore various relationships between the variables. I found that the variables I chose to use may be good predictors of in hospital mortality, but I would need to improve my model. I was however limited on how accurate I could make a model that was able to predict this outcome at a rate of higher than 86% because I have not learned techniques of how to improve models when the dataset is imbalanced.
+
+## **2 Summary of Learning**
+
+This project has taught me how to do EDA on my own data sets. This project forced me to figure out which EDA techniques and which models would work for my project. I found that since the data in this dataset is mostly categorical, that certain methods of EDA wouldn’t work very well. While analyzing my data, a challenge I ran into is that my data was imbalanced. This caused some issues when trying to create a model that wasn’t biased. Another challenge I had was selecting the correct techniques for visualizing my information. I found that histograms and box charts worked well to compare data in which one variable for continuous, while tables and statistical testing worked better to compare outcomes with another categorical variable. This final report has taught me a lot about finding the correct methods to analyze your data and how it can impact what you see. For example, when I was selecting the wrong visualizations for my data, I was getting a lot of visualizations that did not accurately reflect my dataset. One thing I wished I could have learned more about to make this project better is how to train my model for increased accuracy when you have an imbalanced dataset. Overall, my model was able to accurately predict when a patient would not die with the preidctors better than it could predict in hospital mortality using the same predictors.
+
+## **3 Dataset**
+
+
+The dataset I used for this report predicts in hospital mortality. The dataset originally comes from a study done by a few researchers at Fudan University. The data was sourced from MIMIC-III database, which is a database that is comprised of over 40,000 patients who stayed in the critical care units of the Beth Israel Deaconess Medical center between 2001 and 2012. 
+The purpose of this dataset is to explore predictors of in-hospital mortality for ICU-admitted Heart Failure patients. While the MIMIC-III database contains many identifiers, this was extracted using only certain data like demographic data, vital signs, comorbidities, and lab variables. This dataset is predicting outcome and does this with a “0” for alive and “1” for dead. This dataset was found on Kaggle. Because this dataset was is a csv file, I only had to download the file and read it into R Studio. When loading this dataset into R, I found that it has 1177 observations and 51 variables. This dataset can be found here: https://www.kaggle.com/datasets/saurabhshahane/in-hospital-mortality-prediction
+
+## **4 Exploratory Data Analysis**
+
+To begin EDA on this dataset, I reviewed the dataset and decided to use only a few different indicators to predict the outcome of in hospital mortality. The predictors I chose to explore were age, gender, BMI, and comorbidities  like hypertensive,  depression, diabetes, renal failure, and COPD. Using these predictors, I started to explore their relationship to the outcome of dead or alive.
+
+The first part of my EDA involved cleaning the data. I did this by doing things like converting my binary results to levels in the outcome and comorbidities columns. After that, I removed any columns that contained N/A, since they would not be very helpful to my results. After doing this, my dataset was a data frame of 962 observations and 9 variables that contained integers, numerics and factors.
+
+
+```{r}
+# changing columns to factors
+
+mortality$outcome <- as.factor(mortality$outcome)
+mortality$atrialfibrillation <- as.factor(mortality$atrialfibrillation)
+mortality$diabetes <- as.factor(mortality$diabetes)
+mortality$deficiencyanemias <- as.factor(mortality$deficiencyanemias)
+mortality$depression <- as.factor(mortality$depression)
+mortality$Hyperlipemia <- as.factor(mortality$Hyperlipemia)
+mortality$Renal.failure <- as.factor(mortality$Renal.failure)
+mortality$COPD <- as.factor(mortality$COPD)
+mortality$gendera <- as.factor((mortality$gendera))
+mortality$hypertensive <- as.factor((mortality$hypertensive))
+
+head(mortality)
+str(mortality)
+
+
+
+mortality.outcomes <- dplyr::select(mortality, outcome, age, gendera, BMI, hypertensive, depression, diabetes, Renal.failure, COPD)
+
+
+# any null values? If so remove
+colSums(is.na(mortality.outcomes))
+
+mortality.outcomes <- na.omit(mortality.outcomes)
+
+colSums(is.na(mortality.outcomes))
+
+str(mortality.outcomes)
+head(mortality.outcomes)
+summary(mortality.outcomes)
+
+```
+
+**Exploring dependent variables and independent variables**
+
+Before exploring potential relationships between the predictors, I first wanted to get more information on each individual variable.
+```{r}
+ggplot(mortality.outcomes, aes(x = outcome)) + geom_bar()
+```
+When looking at my target variable outcome, I found that this dataset contained more patients who were alive then patients that were dead. 
+
+```{r}
+ggplot(mortality.outcomes, aes(x = gendera)) + geom_bar()
+```
+
+Although this dataset does not explicitly state which classification "1" or "2" indicated male or female, This bar chart shows me that there is a balanced amount of both genders in this dataset.
+```{r}
+ggplot(mortality.outcomes, aes(x = hypertensive)) + geom_bar()
+```
+This bar chart indicates that this dataset contains more patients that were hypertensive then then those that are not.
+
+```{r}
+ggplot(mortality.outcomes, aes(x = depression)) + geom_bar()
+```
+
+This bar chart indicates that many of the patients in this dataset did not have depression.
+
+```{r}
+ggplot(mortality.outcomes, aes(x = diabetes)) + geom_bar()
+```
+This chart shows that this dataset contains slightly more patients that dont have diabetes, than that do, although there is not a huge difference in the counts between the two.
+
+```{r}
+ggplot(mortality.outcomes, aes(x = Renal.failure)) + geom_bar()
+```
+
+This chart shows that most patients in this dataset do not have renal failure.
+
+```{r}
+ggplot(mortality.outcomes, aes(x = COPD)) + geom_bar()
+```
+This last chart shows a significant difference in the amount of patients in this dataset had COPD, and those that didnt. From this chart it is obvious that most patients in this dataset do not have COPD.
+
+```{r}
+ggplot(mortality.outcomes, aes(age)) +geom_density()
+ggplot(mortality.outcomes, aes(age)) +geom_histogram()
+
+```
+The above density chart and histogram show that many of the patients in this study are older in age. From the charts, it appears that most of the patients in this study were between 80 and 90 years old, while the oldest appears to be just under 100 years of age. This variable is skewed to the left suggesting many of its patients are higher in age.
+
+```{r}
+ggplot(mortality.outcomes, aes(BMI)) +geom_histogram()
+ggplot(mortality.outcomes, aes(BMI)) +geom_density()
+```
+The variable BMI is skewed to the right. From these charts, I can see that most BMIs fall between 20 and 35. The histogram also shows an outlier that appears to be above 80.
+
+```{r}
+summary(mortality.outcomes)
+```
+
+When running a statistical summary, I observed that the distribution of the charts above accurate represent this dataset. In this dataset, there were 962 observations and of those observations 848 (88.15%) had an outcome of alive, while 114 (11.85%) died.  I also had a mean age of 73.73 years with the minimum age in this dataset being 19 and the oldest being 99 years old. Gender appears to be evenly distributed although this data set did not specify which binary variable represented what gender. The patients in this dataset had a mean BMI of 30.19 with the range being between 13.35 and 104.97.  72.03% of patients were hypertensive and 7.21% had depression, 43.24% of patients were diabetics and 38.46% had renal failure. Only about 7.17% had COPD. Overall, most patients in this dataset did not die, but most have at least one comorbidity that is is a predictor for in hospital mortality.
+
+** Exploring Relationships between the target variable and the predictors**
+```{r}
+# Comparing BMI relationship to outcome
+ggplot(mortality.outcomes, aes(x = BMI, fill = diabetes)) + 
+  geom_histogram()
+
+ggplot(mortality.outcomes, aes(x=outcome, y = BMI)) + 
+    geom_boxplot()
+
+```
+When comparing the variable BMI to the outcome, it appears that most patients in the study that didn't have diabetes had BMIs near 25. In contrast, the patients with diabetes appeared to have a slightly higher BMI, although BMI of both groups appear to be pretty spread out.
+```{r}
+# comparing age effect on outcome
+ggplot(mortality.outcomes, aes(x=outcome, y = age)) + 
+    geom_boxplot()
+
+```
+To explore age and outcome, I created a boxplot. The boxplot shows that for patients that died in their hospital stay, the patients had a median age of 80 years old.  The minimum age ignoring outliers appears to be about 45 and max age at 99. This data is negatively to the left. In comparison, patients that were alive had a median age of about 75 years, with most of those patients being between 60 and 85 years of age.  This boxplot shows that patients that died in the hospital slightly older than the patients that survived.
+```{r}
+# comparing outcome to other discrete variables
+hypertensive.outcomes <- table(mortality.outcomes$outcome, mortality.outcomes$hypertensive)
+chisq.test(hypertensive.outcomes)
+chisq.test(mortality.outcomes$outcome, mortality.outcomes$depression)
+chisq.test(mortality.outcomes$outcome, mortality.outcomes$diabetes)
+chisq.test(mortality.outcomes$outcome, mortality.outcomes$Renal.failure)
+chisq.test(mortality.outcomes$outcome, mortality.outcomes$COPD)
+chisq.test(mortality.outcomes$outcome, mortality.outcomes$gendera)
+```
+ In this section, I decided to use Pearson's Chi-Squared test to test independence of the categorical variables in my dataset. The null hypothesis assumes that the variables are independent. With these variables, I found that hypentensive, diabetes, COPD, and gendera all have p-values greater than 0.05. In these instances, I could not reject the NULL hypothesis. In the cases of depression and renail failure, both variables had a p-value under 0.05, so I would reject the null hypothesis in these cases. 
+
+ ## **5 Models**
+ 
+ **SVM Poly**
+```{r}
+
+library("caret")
+sample_size <- floor(0.8*nrow(mortality.outcomes))
+
+sample_size
+
+train_ind <- sample(seq_len(nrow(mortality.outcomes)), size = sample_size)
+
+
+train <- mortality.outcomes[train_ind,]
+test <- mortality.outcomes[-train_ind,]
+
+
+
+train <- train[complete.cases(train),]
+test <- test[complete.cases(test),]
+
+
+fitControl <- trainControl(
+method = "repeatedcv",
+number = 5,
+repeats = 2)
+
+
+svmpoly <- train(outcome ~ age+gendera+BMI+hypertensive+diabetes+depression+Renal.failure+COPD, data = train, method = "svmPoly", 
+trControl = fitControl)
+
+
+svmpoly
+
+prediction_svmpoly<-predict(svmpoly,newdata = test)
+
+
+
+confusionMatrix(prediction_svmpoly, test$outcome)
+
+```
+ 
+ **SVM Linear**
+```{r}
+svmlinear <- train(outcome ~ age+gendera+BMI+hypertensive+diabetes+depression+Renal.failure+COPD, data = train, method = "svmLinear", 
+trControl = fitControl)
+
+
+svmlinear
+
+prediction_linear<-predict(svmlinear,newdata = test)
+
+
+
+confusionMatrix(prediction_linear, test$outcome)
+
+```
+
+
+```{r}
+svmradial <- train(outcome ~ age+gendera+BMI+hypertensive+diabetes+depression+Renal.failure+COPD, data = train, method = "svmRadial", 
+trControl = fitControl)
+
+svmradial
+
+prediction_svmradial<-predict(svmradial,newdata = test)
+
+
+
+confusionMatrix(prediction_svmradial, test$outcome)
+
+```
+
+For my models I used a sample that was 20% test and 80% train. My sample size was about 769. For models I chose to use SVM. The SVM models I chose to run were polynomial kernel, linear kernel, and gaussian kernel, and This is because SVM models have the ability to use categorical variables and these models are not as prone to overfitting as models like logistic regression. All my models had similar levels of accuracy. The accuracy all the models was stated to be about 91.71%. However when I evaluate the confusion matrix I find that my models have a low McNemar’s test p-value and no specificity. Overall, my model does a great job at predicting when a patient is likely to leave the hospital alive. My models had a lot of trouble predicting when a patient would die in the hospital. From my EDA, in the previous sections, however I am able to see some associations between variables. If I knew how to balance my datasets, I would be able to improve things in this model like specificity and balance accuracy.
+
+
